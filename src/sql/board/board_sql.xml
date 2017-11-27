@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="board">
+    
+    <resultMap type="com.spring.board.vo.BoardVo" id="boardVo">
+    	<result property="boardTypeName" 	column="BOARD_TYPENAME"/>
+    	<result property="boardType" 		column="BOARD_TYPE"/>
+    	<result property="boardNum" 		column="BOARD_NUM"/>
+    	<result property="boardTitle" 		column="BOARD_TITLE"/>
+    	<result property="boardComment" 	column="BOARD_COMMENT"/>
+    </resultMap>
+    
+    <resultMap type="com.spring.board.vo.CodeVo" id="codeVo">
+    	<result property="codeId" 			column="CODE_ID"/>
+    	<result property="codeName" 		column="CODE_NAME"/>
+    </resultMap>
+    
+    <resultMap type="com.spring.board.vo.MemberVo" id="memberVo">
+    	<result property="userId" 			column="USER_ID"/>
+    	<result property="userPw" 		column="USER_PW"/>
+    	<result property="name" 		column="USER_NAME"/>
+    </resultMap>
+    
+    <select id="memberLogin" parameterType="com.spring.board.vo.MemberVo" resultMap="memberVo">
+    	SELECT * FROM USER_INFO
+    	WHERE USER_ID = #{userId}
+    	AND USER_PW = #{userPw}
+    </select>
+    
+    <insert id="memberInsert" parameterType="com.spring.board.vo.MemberVo">
+    	INSERT INTO
+    	USER_INFO
+    	VALUES
+    	(#{userId}, 
+    	#{userPw}, 
+    	#{name}, 
+    	#{phone1}, 
+    	#{phone2}, 
+    	#{phone3}, 
+    	#{addr1}, 
+    	#{addr2},
+    	#{company},
+    	'',
+    	'',
+    	'',
+    	'')
+    </insert>
+    
+    <select id="idCheck" parameterType="com.spring.board.vo.MemberVo" resultType="String">
+    	SELECT USER_PW FROM USER_INFO WHERE USER_ID = #{userId}
+    </select>
+    
+    <select id="boardList" parameterType="com.spring.board.vo.BoardVo" resultMap="boardVo">
+        SELECT 
+           BOARD_TYPENAME
+		  ,BOARD_TYPE
+		  ,BOARD_NUM
+		  ,BOARD_TITLE
+		  ,BOARD_COMMENT
+		  ,TOTAL_CNT
+		FROM 
+		(
+		  SELECT 
+		      		c.CODE_NAME as BOARD_TYPENAME
+		      		,b.BOARD_TYPE
+                    ,b.BOARD_NUM
+                    ,b.BOARD_TITLE
+                    ,b.BOARD_COMMENT
+                    ,ROW_NUMBER() OVER(ORDER BY BOARD_NUM DESC) AS NUMROW
+                    ,COUNT(*) OVER() AS TOTAL_CNT
+		   FROM 
+		      	COM_CODE c 
+		   JOIN 
+		      	BOARD b 
+		   ON 
+		      	c.CODE_ID = b.BOARD_TYPE
+		)
+		WHERE NUMROW BETWEEN (#{pageNo}-1)*10 + 1 AND (#{pageNo})*10
+		<if test="searchInfo != null">
+			AND BOARD_TYPE in
+	      <foreach collection="searchInfo" item="item" index="index" open="(" close=")" separator=",">
+	         #{item,jdbcType=VARCHAR}
+	      </foreach>
+		</if>
+    </select>
+    
+    <select id="boardTotal" parameterType="Integer" resultType="Integer">
+		  SELECT
+		      	COUNT(*) AS TOTAL_CNT
+			FROM
+				BOARD	
+    </select>
+    	
+    <select id="boardView" parameterType="com.spring.board.vo.BoardVo" resultMap="boardVo">
+    	SELECT
+        	BOARD_TYPE
+			,BOARD_NUM
+			,BOARD_TITLE
+			,BOARD_COMMENT
+		FROM
+			BOARD
+    	WHERE 	BOARD_TYPE = #{boardType}
+    	AND 	BOARD_NUM  = #{boardNum}
+    </select>	
+    
+    <select id="boardInsert" parameterType="com.spring.board.vo.BoardVo">
+        INSERT INTO 
+        BOARD
+        (BOARD_TYPE
+        ,BOARD_NUM
+        ,BOARD_TITLE
+        ,BOARD_COMMENT
+        ,CREATOR
+        ,CREATE_TIME
+        ,MODIFIER
+        ,MODIFIED_TIME
+        )
+        VALUES
+        (#{boardType}
+        ,nvl((SELECT TO_NUMBER(MAX(BOARD_NUM)+1)
+	    	FROM BOARD
+	    	WHERE BOARD_TYPE = #{boardType}),1)
+        ,#{boardTitle}
+        ,#{boardComment}
+        ,#{creator}
+        ,TO_CHAR(SYSDATE)
+        ,'SYSTEM'
+        ,TO_CHAR(SYSDATE)
+        )
+    </select>
+    <update id="update" parameterType="com.spring.board.vo.BoardVo">
+    	UPDATE BOARD SET
+    		BOARD_TITLE = '${boardTitle}',
+    		BOARD_COMMENT = '${boardComment}'
+    	WHERE BOARD_TYPE = '${boardType}'
+    	AND	BOARD_NUM = '${boardNum}'
+    </update>
+    <delete id="delete" parameterType="com.spring.board.vo.BoardVo">
+    	DELETE FROM
+    		BOARD
+    	WHERE BOARD_NUM = #{boardNum}
+    	AND BOARD_TYPE = #{boardType}
+    </delete>
+    
+    <select id="option" parameterType="com.spring.board.vo.CodeVo" resultMap="codeVo">
+    	SELECT
+    		CODE_ID,CODE_NAME
+    	FROM
+    		COM_CODE
+    	WHERE CODE_TYPE = 'menu'
+    </select>
+</mapper>
